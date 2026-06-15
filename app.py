@@ -3,6 +3,9 @@ import pandas as pd
 import base64
 import datetime
 import time
+import easyocr
+import numpy as np
+from PIL import Image
 
 # -------------------------
 # CONFIG
@@ -143,7 +146,11 @@ with tab3:
 
     st.header("📸 Upload Prescription")
 
-    file = st.file_uploader("Upload Prescription Image", type=["png","jpg","jpeg"], key="upload")
+    file = st.file_uploader(
+        "Upload Prescription Image",
+        type=["png", "jpg", "jpeg"],
+        key="upload"
+    )
 
     if file:
         st.image(file, width=300)
@@ -151,19 +158,23 @@ with tab3:
 
         st.subheader("💊 Medicines Detected")
 
-        # Dummy detection
-        detected = ["Paracetamol", "Crocin"]
+        image = Image.open(file)
 
-        # 👉 ADD: session state for selection
+        reader = easyocr.Reader(["en"])
+        results = reader.readtext(
+            np.array(image),
+            detail=0
+        )
+
+        detected = results
+
         if "selected_med" not in st.session_state:
             st.session_state.selected_med = None
 
-        # 👉 MODIFY: make medicines clickable
-        for med in detected:
-            if st.button(f"✔ {med}", key=med):
+        for i, med in enumerate(detected):
+            if st.button(f"✔ {med}", key=f"med_{i}_{med}"):
                 st.session_state.selected_med = med
 
-        # 👉 ADD: show pharmacies after click
         if st.session_state.selected_med:
             st.subheader(f"🏥 Pharmacies with {st.session_state.selected_med}")
 
