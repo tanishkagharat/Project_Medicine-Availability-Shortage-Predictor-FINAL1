@@ -6,6 +6,7 @@ import time
 import easyocr
 import numpy as np
 from PIL import Image
+from rapidfuzz import fuzz
 
 # -------------------------
 # CONFIG
@@ -159,10 +160,12 @@ with tab3:
         image = Image.open(file)
 
         reader = easyocr.Reader(["en"])
-        results = reader.readtext(
-            np.array(image),
-            detail=0
-        )
+
+        with st.spinner("Reading prescription..."):
+            results = reader.readtext(
+                np.array(image),
+                detail=0
+            )
 
         st.subheader("💊 Medicines Detected")
 
@@ -171,14 +174,24 @@ with tab3:
         detected = []
 
         for text in results:
-            for med in medicine_db:
-                if str(med).lower() in text.lower():
-                    detected.append(med)
+            best_match = None
+            best_score = 0
 
-        detected = list(set(detected))
+            for med in medicine_db:
+                score = fuzz.ratio(str(med).lower(), text.lower())
+
+                if score > best_score:
+                    best_score = score
+                    best_match = med
+
+            if best_score >= 60:
+                detected.append(best_match)
+
+        detected = list(dict.fromkeys(detected))
 
         if len(detected) == 0:
             st.warning("No medicine detected clearly. Try uploading a clearer image.")
+
         else:
             if "selected_med" not in st.session_state:
                 st.session_state.selected_med = None
@@ -188,18 +201,46 @@ with tab3:
                     st.session_state.selected_med = med
 
             if st.session_state.selected_med:
-                st.subheader(f"🏥 Pharmacies with {st.session_state.selected_med}")
 
-                matches = df[df["Medicine_Name"] == st.session_state.selected_med]
+                selected = st.session_state.selected_med
+
+                st.subheader(f"🏥 Availability for {selected}")
+
+                matches = df[df["Medicine_Name"] == selected]
 
                 if matches.empty:
                     st.error("No pharmacy found in dataset.")
+
                 else:
-                    for _, shop in matches.iterrows():
-                        status = shop["Availability"]
-                        st.write(
-                            f"**{shop['Pharmacy_Name']}** - {shop['Area']} → {status}"
-                        )
+                    available = matches[matches["Availability"] == "Available"]
+                    low_stock = matches[matches["Availability"] == "Low Stock"]
+                    out_stock = matches[matches["Availability"] == "Out of Stock"]
+
+                    if not available.empty:
+                        st.success(f"✅ {selected} is Available")
+
+                        st.write("### 📍 Available at:")
+
+                        for _, shop in available.iterrows():
+                            st.write(
+                                f"✅ **{shop['Pharmacy_Name']}** - {shop['Area']} "
+                                f"| 📞 {shop['Contact_Number']} "
+                                f"| 🚚 Delivery: {shop['Home_Delivery']}"
+                            )
+
+                    elif not low_stock.empty:
+                        st.warning(f"⚠️ {selected} is Low Stock")
+
+                        st.write("### 📍 Low stock at:")
+
+                        for _, shop in low_stock.iterrows():
+                            st.write(
+                                f"⚠️ **{shop['Pharmacy_Name']}** - {shop['Area']} "
+                                f"| 📞 {shop['Contact_Number']}"
+                            )
+
+                    else:
+                        st.error(f"❌ {selected} is Out of Stock")
 # =====================================================
 # ⏰ TAB 4 (FINAL HYBRID CLOCK + AM/PM)
 # =====================================================
