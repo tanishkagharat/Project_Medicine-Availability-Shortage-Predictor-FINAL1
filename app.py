@@ -156,8 +156,6 @@ with tab3:
         st.image(file, width=300)
         st.success("Uploaded successfully")
 
-        st.subheader("💊 Medicines Detected")
-
         image = Image.open(file)
 
         reader = easyocr.Reader(["en"])
@@ -166,28 +164,42 @@ with tab3:
             detail=0
         )
 
-        detected = results
+        st.subheader("💊 Medicines Detected")
 
-        if "selected_med" not in st.session_state:
-            st.session_state.selected_med = None
+        medicine_db = df["Medicine_Name"].dropna().unique()
 
-        for i, med in enumerate(detected):
-            if st.button(f"✔ {med}", key=f"med_{i}_{med}"):
-                st.session_state.selected_med = med
+        detected = []
 
-        if st.session_state.selected_med:
-            st.subheader(f"🏥 Pharmacies with {st.session_state.selected_med}")
+        for text in results:
+            for med in medicine_db:
+                if str(med).lower() in text.lower():
+                    detected.append(med)
 
-            pharmacies = [
-                {"name": "Apollo Pharmacy", "location": "Andheri", "stock": True},
-                {"name": "MedPlus", "location": "Bandra", "stock": True},
-                {"name": "Local Chemist", "location": "Dadar", "stock": False},
-            ]
+        detected = list(set(detected))
 
-            for shop in pharmacies:
-                status = "✅ Available" if shop["stock"] else "❌ Out of stock"
-                st.write(f"**{shop['name']}** - {shop['location']} → {status}")
+        if len(detected) == 0:
+            st.warning("No medicine detected clearly. Try uploading a clearer image.")
+        else:
+            if "selected_med" not in st.session_state:
+                st.session_state.selected_med = None
 
+            for i, med in enumerate(detected):
+                if st.button(f"✔ {med}", key=f"med_{i}_{med}"):
+                    st.session_state.selected_med = med
+
+            if st.session_state.selected_med:
+                st.subheader(f"🏥 Pharmacies with {st.session_state.selected_med}")
+
+                matches = df[df["Medicine_Name"] == st.session_state.selected_med]
+
+                if matches.empty:
+                    st.error("No pharmacy found in dataset.")
+                else:
+                    for _, shop in matches.iterrows():
+                        status = shop["Availability"]
+                        st.write(
+                            f"**{shop['Pharmacy_Name']}** - {shop['Area']} → {status}"
+                        )
 # =====================================================
 # ⏰ TAB 4 (FINAL HYBRID CLOCK + AM/PM)
 # =====================================================
