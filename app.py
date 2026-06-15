@@ -32,8 +32,7 @@ df = load_data()
 # -------------------------
 # TITLE
 # -------------------------
-st.title("💊 Medicine Availability Assistant")
-st.warning("⚠️ Informational use only")
+st.title("AI-Powered Medicine Avalalibility & Shortage Prediction System")
 
 # -------------------------
 # TABS
